@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Habito - Simple Web App</title>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #fefefe;
+      color: #333;
+      text-align: center;
+    }
+    input, button {
+      padding: 10px;
+      margin: 10px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    .btn {
+      background-color: coral;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .tabContent {
+      display: none;
+      padding: 20px;
+    }
+    .active {
+      display: block;
+    }
+    .tabBar {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      display: flex;
+      justify-content: space-around;
+      background: #eee;
+      padding: 10px 0;
+      border-top: 1px solid #ccc;
+    }
+    .tab {
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .tab:hover {
+      color: coral;
+    }
+    video {
+      width: 200px;
+      margin: 10px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="loginScreen">
+  <h2>Welcome to Habito 👋</h2>
+  <input type="text" id="usernameInput" placeholder="Enter your name" />
+  <button class="btn" onclick="startApp()">Start</button>
+</div>
+
+<!-- Main App -->
+<div id="mainApp" style="display:none;">
+  <h2 id="greeting"></h2>
+
+  <!-- Tabs -->
+  <div class="tabContent active" id="homeTab">
+    <h3>🏠 Home</h3>
+    <input type="text" id="habitInput" placeholder="Enter habit name" />
+    <button class="btn" onclick="addHabit()">Add Habit</button>
+    <div id="habitList"></div>
+  </div>
+
+  <div class="tabContent" id="reelsTab">
+    <h3>🎥 Reels</h3>
+    <div id="reelsGallery"></div>
+  </div>
+
+  <div class="tabContent" id="profileTab">
+    <h3>👤 Profile</h3>
+    <p id="profileInfo"></p>
+    <div id="videoGallery"></div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <div class="tabBar">
+    <div class="tab" onclick="switchTab('homeTab')">🏠</div>
+    <div class="tab" onclick="switchTab('reelsTab')">🎥</div>
+    <div class="tab" onclick="switchTab('profileTab')">👤</div>
+  </div>
+</div>
+
+<script>
+  const streaks = {};
+  const lastUpdated = {};
+  const publicVideos = [];
+
+  function getTodayDate() {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  function startApp() {
+    const name = document.getElementById("usernameInput").value.trim();
+    if (name) {
+      localStorage.setItem("habitoUser", name);
+      document.getElementById("loginScreen").style.display = "none";
+      document.getElementById("mainApp").style.display = "block";
+      document.getElementById("greeting").innerText = `Welcome, ${name} 👋`;
+      updateProfile();
+    }
+  }
+
+  function switchTab(tabId) {
+    document.querySelectorAll(".tabContent").forEach(tab => tab.classList.remove("active"));
+    document.getElementById(tabId).classList.add("active");
+  }
+
+  function addHabit() {
+    const habitName = document.getElementById("habitInput").value.trim();
+    if (habitName && !streaks[habitName]) {
+      streaks[habitName] = 0;
+      lastUpdated[habitName] = null;
+
+      const container = document.createElement("div");
+
+      const label = document.createElement("label");
+      label.innerText = habitName + ": ";
+
+      const fileInput = document.createElement("input");
+      fileInput.type = "file";
+      fileInput.accept = "video/*";
+
+      const uploadBtn = document.createElement("button");
+      uploadBtn.className = "btn";
+      uploadBtn.innerText = "Upload Proof";
+      uploadBtn.onclick = () => uploadVideo(habitName, fileInput);
+
+      const streakDisplay = document.createElement("p");
+      streakDisplay.id = habitName;
+      streakDisplay.innerText = `🔥 ${habitName}: 0 days`;
+
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "btn";
+      removeBtn.innerText = "Remove";
+      removeBtn.onclick = () => {
+        delete streaks[habitName];
+        delete lastUpdated[habitName];
+        container.remove();
+      };
+
+      container.appendChild(label);
+      container.appendChild(fileInput);
+      container.appendChild(uploadBtn);
+      container.appendChild(streakDisplay);
+      container.appendChild(removeBtn);
+      document.getElementById("habitList").appendChild(container);
+
+      document.getElementById("habitInput").value = "";
+    }
+  }
+
+  function uploadVideo(habit, input) {
+    const today = getTodayDate();
+    if (lastUpdated[habit] === today) {
+      alert(`You've already submitted proof for "${habit}" today.`);
+      return;
+    }
+
+    const file = input.files[0];
+    if (!file) {
+      alert("Please select a video file.");
+      return;
+    }
+
+    streaks[habit]++;
+    lastUpdated[habit] = today;
+    document.getElementById(habit).innerText = `🔥 ${habit}: ${streaks[habit]} days`;
+
+    const videoURL = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.src = videoURL;
+    video.controls = true;
+
+    const publicBtn = document.createElement("button");
+    publicBtn.className = "btn";
+    publicBtn.innerText = "Make Public";
+    publicBtn.onclick = () => {
+      publicVideos.push(videoURL);
+      renderReels();
+      publicBtn.disabled = true;
+      publicBtn.innerText = "Public ✔";
+    };
+
+    const wrapper = document.createElement("div");
+    wrapper.appendChild(video);
+    wrapper.appendChild(publicBtn);
+    document.getElementById("videoGallery").appendChild(wrapper);
+
+    updateProfile();
+    input.value = "";
+  }
+
+  function renderReels() {
+    const gallery = document.getElementById("reelsGallery");
+    gallery.innerHTML = "";
+    publicVideos.forEach(url => {
+      const vid = document.createElement("video");
+      vid.src = url;
+      vid.controls = true;
+      gallery.appendChild(vid);
+    });
+  }
+
+  function updateProfile() {
+    const name = localStorage.getItem("habitoUser");
+    const count = document.getElementById("videoGallery").children.length;
+    document.getElementById("profileInfo").innerText = `Username: ${name}\nFollowers: 0 | Following: 0 | Videos: ${count}`;
+  }
+</script>
+
+</body>
+</html>
